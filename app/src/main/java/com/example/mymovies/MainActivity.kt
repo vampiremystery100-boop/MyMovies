@@ -46,266 +46,25 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MyMoviesApp() {
-
-    val context = LocalContext.current
-
-    var selectedCategory by remember {
-        mutableStateOf("Horror")
-    }
-
-    var playingFile by remember {
-        mutableStateOf<File?>(null)
-    }
-
-    var refresh by remember {
-        mutableIntStateOf(0)
-    }
-
-    val movieFiles = remember(selectedCategory, refresh) {
-
-        val folder = File(
-            context.filesDir,
-            "movies/$selectedCategory"
-        )
-
-        folder.listFiles()
-            ?.filter { it.isFile }
-            ?.sortedBy { it.name.lowercase() }
-            ?: emptyList()
-    }
-
-    val launcher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-
-        if (uri != null) {
-
-            val folder = File(
-                context.filesDir,
-                "movies/$selectedCategory"
-            )
-
-            if (!folder.exists()) {
-                folder.mkdirs()
-            }
-
-            val originalName = getFileName(context, uri)
-                ?: "Movie_${System.currentTimeMillis()}.mp4"
-
-            val cleanName = originalName
-                .replace(
-                    Regex("[^A-Za-z0-9._ -]"),
-                    "_"
-                )
-
-            var destination = File(
-                folder,
-                cleanName
-            )
-
-            if (destination.exists()) {
-                destination = File(
-                    folder,
-                    "${System.currentTimeMillis()}_$cleanName"
-                )
-            }
-
-            try {
-
-                context.contentResolver
-                    .openInputStream(uri)
-                    ?.use { input ->
-
-                        destination.outputStream().use { output ->
-                            input.copyTo(output)
-                        }
-                    }
-
-                refresh++
-
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
-
-    if (playingFile != null) {
-
-        VideoPlayerScreen(
-            file = playingFile!!,
-            onBack = {
-                playingFile = null
-            }
-        )
-
-    } else {
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-        ) {
-
-            Text(
-                text = "My Movies",
-                style = MaterialTheme.typography.headlineMedium
-            )
-
-            Spacer(
-                modifier = Modifier.height(12.dp)
-            )
-
-            LazyRow(
-                horizontalArrangement =
-                    Arrangement.spacedBy(8.dp)
-            ) {
-
-                items(categories) { category ->
-
-                    if (category == selectedCategory) {
-
-                        Button(
-                            onClick = {
-                                selectedCategory = category
-                            }
-                        ) {
-                            Text(category)
-                        }
-
-                    } else {
-
-                        OutlinedButton(
-                            onClick = {
-                                selectedCategory = category
-                            }
-                        ) {
-                            Text(category)
-                        }
-                    }
-                }
-            }
-
-            Spacer(
-                modifier = Modifier.height(16.dp)
-            )
-
-            Button(
-                onClick = {
-                    launcher.launch(arrayOf("video/*"))
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("＋ Add Video")
-            }
-
-            Spacer(
-                modifier = Modifier.height(16.dp)
-            )
-
-            Text(
-                text = selectedCategory,
-                style = MaterialTheme.typography.titleLarge
-            )
-
-            Spacer(
-                modifier = Modifier.height(8.dp)
-            )
-
-            if (movieFiles.isEmpty()) {
-
-                Text(
-                    text = "No videos added yet."
-                )
-
-            } else {
-
-                LazyColumn(
-                    verticalArrangement =
-                        Arrangement.spacedBy(8.dp)
-                ) {
-
-                    items(
-                        movieFiles,
-                        key = { it.absolutePath }
-                    ) { file ->
-
-                        Card(
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-
-                            Column(
-                                modifier = Modifier.padding(12.dp)
-                            ) {
-
-                                Text(
-                                    text = file.name,
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-
-                                Spacer(
-                                    modifier = Modifier.height(8.dp)
-                                )
-
-                                Row(
-                                    horizontalArrangement =
-                                        Arrangement.spacedBy(8.dp)
-                                ) {
-
-                                    Button(
-                                        onClick = {
-                                            playingFile = file
-                                        }
-                                    ) {
-                                        Text("▶ Play")
-                                    }
-
-                                    OutlinedButton(
-                                        onClick = {
-                                            file.delete()
-                                            refresh++
-                                        }
-                                    ) {
-                                        Text("Delete")
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
 fun VideoPlayerScreen(
     file: File,
     onBack: () -> Unit
 ) {
-
     val context = LocalContext.current
 
     val player = remember(file) {
-
         ExoPlayer.Builder(context)
             .build()
             .apply {
-
                 setMediaItem(
-                    MediaItem.fromUri(
-                        Uri.fromFile(file)
-                    )
+                    MediaItem.fromUri(Uri.fromFile(file))
                 )
-
                 prepare()
-
                 playWhenReady = true
             }
     }
 
     DisposableEffect(player) {
-
         onDispose {
             player.release()
         }
@@ -315,71 +74,34 @@ fun VideoPlayerScreen(
         onBack()
     }
 
-    Column(
+    Box(
         modifier = Modifier.fillMaxSize()
     ) {
 
-        Button(
-            onClick = onBack,
-            modifier = Modifier.padding(8.dp)
-        ) {
-            Text("← Back")
-        }
-
         AndroidView(
             factory = { viewContext ->
-
                 PlayerView(viewContext).apply {
                     this.player = player
                     useController = true
+
+                    resizeMode =
+                        androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+
+                    setShowBuffering(
+                        PlayerView.SHOW_BUFFERING_WHEN_PLAYING
+                    )
                 }
             },
-
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
+            modifier = Modifier.fillMaxSize()
         )
+
+        Button(
+            onClick = onBack,
+            modifier = Modifier
+                .padding(12.dp)
+                .statusBarsPadding()
+        ) {
+            Text("←")
+        }
     }
-}
-
-fun getFileName(
-    context: android.content.Context,
-    uri: Uri
-): String? {
-
-    var result: String? = null
-
-    if (uri.scheme == "content") {
-
-        context.contentResolver
-            .query(
-                uri,
-                null,
-                null,
-                null,
-                null
-            )
-            ?.use { cursor ->
-
-                if (cursor.moveToFirst()) {
-
-                    val index =
-                        cursor.getColumnIndex(
-                            OpenableColumns.DISPLAY_NAME
-                        )
-
-                    if (index >= 0) {
-                        result = cursor.getString(index)
-                    }
-                }
-            }
-    }
-
-    if (result == null) {
-
-        result = uri.path
-            ?.substringAfterLast('/')
-    }
-
-    return result
 }
