@@ -63,6 +63,7 @@ fun MyMoviesApp() {
     }
 
     val movieFiles = remember(selectedCategory, refresh) {
+
         val folder = File(
             context.filesDir,
             "movies/$selectedCategory"
@@ -93,9 +94,15 @@ fun MyMoviesApp() {
                 ?: "Movie_${System.currentTimeMillis()}.mp4"
 
             val cleanName = originalName
-                .replace(Regex("[^A-Za-z0-9._ -]"), "_")
+                .replace(
+                    Regex("[^A-Za-z0-9._ -]"),
+                    "_"
+                )
 
-            var destination = File(folder, cleanName)
+            var destination = File(
+                folder,
+                cleanName
+            )
 
             if (destination.exists()) {
                 destination = File(
@@ -105,12 +112,15 @@ fun MyMoviesApp() {
             }
 
             try {
-                context.contentResolver.openInputStream(uri)?.use { input ->
 
-                    destination.outputStream().use { output ->
-                        input.copyTo(output)
+                context.contentResolver
+                    .openInputStream(uri)
+                    ?.use { input ->
+
+                        destination.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
                     }
-                }
 
                 refresh++
 
@@ -142,10 +152,13 @@ fun MyMoviesApp() {
                 style = MaterialTheme.typography.headlineMedium
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(
+                modifier = Modifier.height(12.dp)
+            )
 
             LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement =
+                    Arrangement.spacedBy(8.dp)
             ) {
 
                 items(categories) { category ->
@@ -173,7 +186,9 @@ fun MyMoviesApp() {
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(
+                modifier = Modifier.height(16.dp)
+            )
 
             Button(
                 onClick = {
@@ -184,14 +199,18 @@ fun MyMoviesApp() {
                 Text("＋ Add Video")
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(
+                modifier = Modifier.height(16.dp)
+            )
 
             Text(
                 text = selectedCategory,
                 style = MaterialTheme.typography.titleLarge
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(
+                modifier = Modifier.height(8.dp)
+            )
 
             if (movieFiles.isEmpty()) {
 
@@ -202,7 +221,8 @@ fun MyMoviesApp() {
             } else {
 
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement =
+                        Arrangement.spacedBy(8.dp)
                 ) {
 
                     items(
@@ -279,6 +299,7 @@ fun VideoPlayerScreen(
                 )
 
                 prepare()
+
                 playWhenReady = true
             }
     }
@@ -311,15 +332,54 @@ fun VideoPlayerScreen(
                 PlayerView(viewContext).apply {
                     this.player = player
                     useController = true
-                    PlayerView(viewContext).apply {
-    this.player = player
-    useController = true
-                        
                 }
             },
+
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
         )
     }
+}
+
+fun getFileName(
+    context: android.content.Context,
+    uri: Uri
+): String? {
+
+    var result: String? = null
+
+    if (uri.scheme == "content") {
+
+        context.contentResolver
+            .query(
+                uri,
+                null,
+                null,
+                null,
+                null
+            )
+            ?.use { cursor ->
+
+                if (cursor.moveToFirst()) {
+
+                    val index =
+                        cursor.getColumnIndex(
+                            OpenableColumns.DISPLAY_NAME
+                        )
+
+                    if (index >= 0) {
+                        result = cursor.getString(index)
+                    }
+                }
+            }
+    }
+
+    if (result == null) {
+
+        result = uri.path
+            ?.substringAfterLast('/')
+    }
+
+    return result
 }
