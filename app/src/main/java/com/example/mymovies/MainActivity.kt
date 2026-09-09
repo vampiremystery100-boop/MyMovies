@@ -311,3 +311,15 @@ fun VideoPlayerScreen(
                 PlayerView(viewContext).apply {
                     this.player = player
                     useController = true
+                    PlayerView(viewContext).apply {
+    this.player = player
+    useController = true
+                        
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        )
+    }
+}
